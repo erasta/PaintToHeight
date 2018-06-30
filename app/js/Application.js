@@ -9,23 +9,48 @@ class Application {
         // this.applyGuiChanges();
         this.createCanvas();
     }
-    addSegment(x1, y1, x2, y2) {
+    static resampleSegment(p, q, step) {
+        var dist = p.distanceTo(q);
+        var ret = [p];
+        for (var d = step; d < dist; d += step) {
+            ret.push(new THREE.Vector3().lerpVectors(p, q, d / dist));
+        }
+        ret.push(q);
+        return ret;
+    }
+    static resampleLine(line, step) {
+        var ret = [line[0]];
+        for (var i = 1; i < line.length; ++i) {
+            var p = line[i - 1], q = line[i];
+            var dist = p.distanceTo(q);
+            for (var d = step; d < dist; d += step) {
+                ret.push(new THREE.Vector3().lerpVectors(p, q, d / dist));
+            }
+            ret.push(q);
+        }
+        return ret;
+    }
+
+    drawLine(line) {
         this.context.beginPath();
-        this.context.moveTo(x1, y1);
-        this.context.lineTo(x2, y2);
+        for (var i = 1; i < line.length; ++i) {
+            this.context.moveTo(line[i-1].x, line[i-1].y);
+            this.context.lineTo(line[i].x, line[i].y);
+        }
         this.context.closePath();
         this.context.stroke();
-        for (var z = -this.totalHeight / 2; z <= +this.totalHeight / 2; z += this.thickness) {
-            var f = 1+(z / this.totalHeight * 2) * this.trapezoid;
-            var rx1 = f * (x1 - this.canvasWidth / 2.0) / 10.0;
-            var rx2 = f * (x2 - this.canvasWidth / 2.0) / 10.0;
-            var ry1 = f * (-y1 + this.canvasHeight / 2.0) / 10.0;
-            var ry2 = f * (-y2 + this.canvasHeight / 2.0) / 10.0;
-            const v1 = new THREE.Vector3(rx1, ry1, z);
-            const v2 = new THREE.Vector3(rx2, ry2, z);
-            var d = v1.distanceTo(v2);
-            this.mesh.geometry.vertices.push(v1);
-            this.mesh.geometry.vertices.push(v2);
+
+        var l = Application.resampleLine(line.map(p => {
+            return new THREE.Vector3((p.x - this.canvasWidth / 2.0) / 10.0, (-p.y + this.canvasHeight / 2.0) / 10.0);
+        }));
+        for (var i = 1; i < l.length; ++i) {
+            for (var z = -this.totalHeight / 2; z <= +this.totalHeight / 2; z += this.thickness) {
+                var p = l[i-1], q = l[i];
+                var f = 1 + (z / this.totalHeight * 2) * this.trapezoid;
+                p = new THREE.Vector3(f * p.x, f * p.y, z);
+                q = new THREE.Vector3(f * q.x, f * q.y, z);
+                this.mesh.geometry.vertices.push(p, q);
+            }
         }
     }
 
@@ -38,11 +63,11 @@ class Application {
 
         this.sceneManager.scene.remove(this.mesh);
         this.mesh = new THREE.LineSegments(new THREE.Geometry(), this.material);
-        for (var i = 0; i < this.clickX.length; i++) {
-            if (this.clickDrag[i] && i) {
-                this.addSegment(this.clickX[i - 1], this.clickY[i - 1], this.clickX[i], this.clickY[i]);
+        for (var i = 0; i < this.lines.length; i++) {
+            if (this.lines[i].length > 1) {
+                this.drawLine(this.lines[i]);
             } else {
-                this.addSegment(this.clickX[i] - 1, this.clickY[i], this.clickX[i], this.clickY[i]);
+                this.drawLine([new THREE.Vector2(this.lines[i][0].x - 1, this.lines[i][0].y), this.lines[i][0]]);
             }
         }
         this.sceneManager.scene.add(this.mesh);
@@ -78,17 +103,23 @@ class Application {
         this.context = canvas.getContext("2d");
         this.canvasHeight = canvas.height = this.context.canvas.clientHeight;
         this.canvasWidth = canvas.width = this.context.canvas.clientWidth;
-        this.clickX = new Array();
-        this.clickY = new Array();
-        this.clickDrag = new Array();
+        // this.clickX = new Array();
+        // this.clickY = new Array();
+        // this.clickDrag = new Array();
+        this.lines = [];
         var paint;
         // var geom = this.mesh.geometry;
         var that = this;
 
         function addClick(x, y, dragging) {
-            that.clickX.push(x);
-            that.clickY.push(y);
-            that.clickDrag.push(dragging);
+            if (dragging && that.lines.length > 0) {
+                that.lines[that.lines.length - 1].push(new THREE.Vector2(x, y));
+            } else {
+                that.lines.push([new THREE.Vector2(x, y)]);
+            }
+            // that.clickX.push(x);
+            // that.clickY.push(y);
+            // that.clickDrag.push(dragging);
         }
         $('#canvasInAPerfectWorld').mousedown(function (e) {
             paint = true;
