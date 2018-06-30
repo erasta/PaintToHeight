@@ -15,7 +15,7 @@ class SceneManager {
 
         this.renderer.gammaInput = true;
         this.renderer.gammaOutput = true;
-        this.renderer.setFaceCulling(0);
+        // this.renderer.setFaceCulling(0);
 
         this.renderer.setSize(this.container.offsetWidth, this.container.offsetHeight);
         this.container.appendChild(this.renderer.domElement);
@@ -36,9 +36,10 @@ class SceneManager {
         this.renderer.setClearColor(0xffffff, 1);
         this.renderer.clear();
         this.scene.add(new THREE.HemisphereLight(0xffffff, 0x222222));
-        // var grid = new THREE.GridHelper(50, 50);
-        // grid.rotation.x = Math.PI / 2;
-        // this.scene.add(grid);
+        this.grid = new THREE.GridHelper(50, 50, new THREE.Color('green'));
+        this.grid.rotation.x = Math.PI / 2;
+        this.grid.visible = false;
+        this.scene.add(this.grid);
 
         // Lights
         [

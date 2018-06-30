@@ -23,7 +23,7 @@ class Application {
         for (var i = 1; i < line.length; ++i) {
             var p = line[i - 1], q = line[i];
             var dist = p.distanceTo(q);
-            for (var d = step; d < dist; d += step) {
+            for (var d = step, dl = dist - step / 2.0; d <= dl; d += step) {
                 ret.push(new THREE.Vector3().lerpVectors(p, q, d / dist));
             }
             ret.push(q);
@@ -31,7 +31,17 @@ class Application {
         return ret;
     }
 
+    static removeDuplicates(line) {
+        var ret = [line[0]];
+        for (var i = 1; i < line.length; ++i) {
+            if (line[i].manhattanDistanceTo(line[i-1]) < 0.001) continue;
+            ret.push(line[i]);
+        }
+        return ret;
+    }
     drawLine(line) {
+        line = Application.removeDuplicates(line);
+
         this.context.beginPath();
         for (var i = 1; i < line.length; ++i) {
             this.context.moveTo(line[i-1].x, line[i-1].y);
@@ -40,12 +50,28 @@ class Application {
         this.context.closePath();
         this.context.stroke();
 
-        var l = Application.resampleLine(line.map(p => {
-            return new THREE.Vector3((p.x - this.canvasWidth / 2.0) / 10.0, (-p.y + this.canvasHeight / 2.0) / 10.0);
-        }));
-        for (var i = 1; i < l.length; ++i) {
+        var line = line.map(p => {
+            return new THREE.Vector3((p.x - this.canvasWidth / 2.0) / 10.0, (-p.y + this.canvasHeight / 2.0) / 10.0, 0);
+        });
+        var line = Application.resampleLine(line, 0.1);
+
+        var dist = 0;
+        var line = line.map((p, i) => {
+            if (i == 0) return p;
+            var q = line[i-1];
+
+            var d = p.distanceTo(q);
+            var nx = (p.y - q.y) / d, ny = (q.x - p.x) / d;
+            dist += d;
+            var s = Math.sin(dist * this.frequency) * this.intensity, c = Math.cos(dist * this.frequency) * this.intensity;
+            var v = new THREE.Vector3(p.x + c * nx + s * ny, p.y - s * nx + c * ny, 0);
+            return v;
+        });
+
+        var dist = 0;
+        for (var i = 1; i < line.length; ++i) {
             for (var z = -this.totalHeight / 2; z <= +this.totalHeight / 2; z += this.thickness) {
-                var p = l[i-1], q = l[i];
+                var p = line[i-1], q = line[i];
                 var f = 1 + (z / this.totalHeight * 2) * this.trapezoid;
                 p = new THREE.Vector3(f * p.x, f * p.y, z);
                 q = new THREE.Vector3(f * q.x, f * q.y, z);
@@ -79,15 +105,23 @@ class Application {
         this.redraw();
     }
 
+    showGrid() {
+        this.sceneManager.grid.visible = !this.sceneManager.grid.visible;
+    }
     initGui() {
         this.applyGuiChanges = this.applyGuiChanges.bind(this);
         this.gui = new dat.GUI({ autoPlace: true, width: 500 });
         this.totalHeight = 20;
         this.thickness = 0.5;
         this.trapezoid = 0;
+        this.intensity = 0;
+        this.frequency = 1;
         this.gui.add(this, 'totalHeight').name('Total Height').min(1).max(100).step(1).onChange(this.applyGuiChanges);
         this.gui.add(this, 'thickness').name('Thickness').min(0.001).max(3).step(0.001).onChange(this.applyGuiChanges);
         this.gui.add(this, 'trapezoid').name('Trapezoid').min(-1).max(1).step(0.001).onChange(this.applyGuiChanges);
+        this.gui.add(this, 'intensity').name('Intensity').min(0).max(10).step(0.001).onChange(this.applyGuiChanges);
+        this.gui.add(this, 'frequency').name('Frequency').min(0.001).max(10).step(0.001).onChange(this.applyGuiChanges);
+        this.gui.add(this, 'showGrid').name('Show Grid');
     }
 
     // onClick(inter) {
@@ -120,17 +154,16 @@ class Application {
             // that.clickX.push(x);
             // that.clickY.push(y);
             // that.clickDrag.push(dragging);
+            (that.redraw).bind(that)();
         }
         $('#canvasInAPerfectWorld').mousedown(function (e) {
             paint = true;
             addClick(e.pageX - this.offsetLeft, e.pageY - this.offsetTop);
-            (that.redraw).bind(that)();
         });
 
         $('#canvasInAPerfectWorld').mousemove(function (e) {
             if (paint) {
                 addClick(e.pageX - this.offsetLeft, e.pageY - this.offsetTop, true);
-                (that.redraw).bind(that)();
             }
         });
 
