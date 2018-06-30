@@ -27,7 +27,7 @@ class SceneManager {
 
         // CAMERA
         this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 3000);
-        this.camera.position.set(0, -30, 5);
+        this.camera.position.set(0, -50, 20);
         this.scene.add(this.camera);
         this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
         THREEx.WindowResize(this.renderer, this.camera);
