@@ -60,8 +60,8 @@ class Polyline {
         var dist = 0;
         return new Polyline(this.points.map((p, i) => {
             dist += ((i == 0) ? 0 : p.distanceTo(this.points[i - 1]));
-            var s = Math.sin(dist * frequency) * intensity, c = Math.cos(dist * frequency) * intensity;
-            var v = new THREE.Vector3(p.x + c * normals[i].x, p.y + s * normals[i].y, p.z);
+            var s = Math.sin(dist * frequency) * intensity;
+            var v = p.clone().addScaledVector(normals[i], s);
             return v;
         }));
     }
