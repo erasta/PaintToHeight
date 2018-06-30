@@ -9,22 +9,30 @@ class Application {
         // this.applyGuiChanges();
         this.createCanvas();
     }
-    addSegment(x1, y1, x2, y2) {
+    addSegment(v1, v2) {
         this.context.beginPath();
-        this.context.moveTo(x1, y1);
-        this.context.lineTo(x2, y2);
+        this.context.moveTo(v1.x, v1.y);
+        this.context.lineTo(v2.x, v2.y);
         this.context.closePath();
         this.context.stroke();
         for (var z = -this.totalHeight / 2; z <= +this.totalHeight / 2; z += this.thickness) {
             var f = 1+(z / this.totalHeight * 2) * this.trapezoid;
             // f = ((f >= 0) ? 1+f : 1-f);
-            var rx1 = f * (x1 - this.canvasWidth / 2.0) / 10.0;
-            var rx2 = f * (x2 - this.canvasWidth / 2.0) / 10.0;
-            var ry1 = f * (-y1 + this.canvasHeight / 2.0) / 10.0;
-            var ry2 = f * (-y2 + this.canvasHeight / 2.0) / 10.0;
+            var rx1 = f * (v1.x - this.canvasWidth / 2.0) / 10.0;
+            var rx2 = f * (v2.x - this.canvasWidth / 2.0) / 10.0;
+            var ry1 = f * (-v1.y + this.canvasHeight / 2.0) / 10.0;
+            var ry2 = f * (-v2.y + this.canvasHeight / 2.0) / 10.0;
             this.mesh.geometry.vertices.push(new THREE.Vector3(rx1, ry1, z));
             this.mesh.geometry.vertices.push(new THREE.Vector3(rx2, ry2, z));
         }
+    }
+
+    addRawSegment(x1, y1, x2, y2) {
+        var v1 = new THREE.Vector2(x1, y1), v2 = new THREE.Vector2(x2, y2);
+        // var dx = x2 - x1, dy = y2 - y1;
+        // var dist = Math.sqrt(dx * dx + dy * dy);
+        // for (for )
+        this.addSegment(v1, v2);
     }
 
     redraw() {
@@ -38,9 +46,9 @@ class Application {
         this.mesh = new THREE.LineSegments(new THREE.Geometry(), this.material);
         for (var i = 0; i < this.clickX.length; i++) {
             if (this.clickDrag[i] && i) {
-                this.addSegment(this.clickX[i - 1], this.clickY[i - 1], this.clickX[i], this.clickY[i]);
+                this.addRawSegment(this.clickX[i - 1], this.clickY[i - 1], this.clickX[i], this.clickY[i]);
             } else {
-                this.addSegment(this.clickX[i] - 1, this.clickY[i], this.clickX[i], this.clickY[i]);
+                this.addRawSegment(this.clickX[i] - 1, this.clickY[i], this.clickX[i], this.clickY[i]);
             }
         }
         this.sceneManager.scene.add(this.mesh);
