@@ -6,69 +6,92 @@ class Application {
 
         this.material = new THREE.LineBasicMaterial({ color: 'red' });
         this.mesh = new THREE.LineSegments(new THREE.Geometry(), this.material);
-        // this.mesh.geometry.vertices.push(new THREE.Vector3(0,0,0), new THREE.Vector3(10,0,10));
-        // this.mesh.position.set(0, 0, 3);
         this.sceneManager.scene.add(this.mesh);
 
-        this.applyGuiChanges();
+        // this.applyGuiChanges();
         this.createCanvas();
     }
-    addSegment(x1, y1, x2, y2, context) {
-        context.beginPath();
-        context.moveTo(x1, y1);
-        context.lineTo(x2, y2);
-        context.closePath();
-        context.stroke();
-        for (var z = -20; z <= +20; ++z) {
+    addSegment(x1, y1, x2, y2) {
+        this.context.beginPath();
+        this.context.moveTo(x1, y1);
+        this.context.lineTo(x2, y2);
+        this.context.closePath();
+        this.context.stroke();
+        for (var z = -this.totalHeight / 2; z <= +this.totalHeight / 2; z += this.thickness) {
             this.mesh.geometry.vertices.push(new THREE.Vector3((x1 - this.canvasWidth / 2.0) / 10.0, (-y1 + this.canvasHeight / 2.0) / 10.0, z));
             this.mesh.geometry.vertices.push(new THREE.Vector3((x2 - this.canvasWidth / 2.0) / 10.0, (-y2 + this.canvasHeight / 2.0) / 10.0, z));
         }
     }
+
+    redraw() {
+        this.context.clearRect(0, 0, this.context.canvas.width, this.context.canvas.height); // Clears the canvas
+
+        this.context.strokeStyle = "#df4b26";
+        this.context.lineJoin = "round";
+        this.context.lineWidth = 2;
+
+        this.sceneManager.scene.remove(this.mesh);
+        this.mesh = new THREE.LineSegments(new THREE.Geometry(), this.material);
+        for (var i = 0; i < this.clickX.length; i++) {
+            if (this.clickDrag[i] && i) {
+                this.addSegment(this.clickX[i - 1], this.clickY[i - 1], this.clickX[i], this.clickY[i]);
+            } else {
+                this.addSegment(this.clickX[i] - 1, this.clickY[i], this.clickX[i], this.clickY[i]);
+            }
+        }
+        this.sceneManager.scene.add(this.mesh);
+    }
+
+    applyGuiChanges() {
+        // console.log(guiParams.ballSize);
+        // this.mesh.scale.set(this.ballSize, this.ballSize, this.ballSize);
+        this.redraw();
+    }
+
+    initGui() {
+        this.applyGuiChanges = this.applyGuiChanges.bind(this);
+        this.gui = new dat.GUI({ autoPlace: true, width: 500 });
+        this.totalHeight = 20;
+        this.thickness = 0.5;
+        this.gui.add(this, 'totalHeight').name('Total Height').min(1).max(100).step(1).onChange(this.applyGuiChanges);
+        this.gui.add(this, 'thickness').name('Thickness').min(0.001).max(3).step(0.001).onChange(this.applyGuiChanges);
+    }
+
+    onClick(inter) {
+        this.sceneManager.scene.remove(this.dot);
+        if (inter[0].object !== this.mesh) return;
+        this.dot = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshNormalMaterial());
+        this.dot.position.copy(inter[0].point);
+        this.sceneManager.scene.add(this.dot);
+    }
+
     createCanvas() {
         var canvas = document.getElementById('canvasInAPerfectWorld');
-        var context = canvas.getContext("2d");
-        this.canvasHeight = canvas.height = context.canvas.clientHeight;
-        this.canvasWidth = canvas.width = context.canvas.clientWidth;
-        var clickX = new Array();
-        var clickY = new Array();
-        var clickDrag = new Array();
+        this.context = canvas.getContext("2d");
+        this.canvasHeight = canvas.height = this.context.canvas.clientHeight;
+        this.canvasWidth = canvas.width = this.context.canvas.clientWidth;
+        this.clickX = new Array();
+        this.clickY = new Array();
+        this.clickDrag = new Array();
         var paint;
         // var geom = this.mesh.geometry;
         var that = this;
 
         function addClick(x, y, dragging) {
-            clickX.push(x);
-            clickY.push(y);
-            clickDrag.push(dragging);
-        }
-        function redraw() {
-            context.clearRect(0, 0, context.canvas.width, context.canvas.height); // Clears the canvas
-
-            context.strokeStyle = "#df4b26";
-            context.lineJoin = "round";
-            context.lineWidth = 2;
-
-            that.sceneManager.scene.remove(that.mesh);
-            that.mesh = new THREE.LineSegments(new THREE.Geometry(), that.material);
-            for (var i = 0; i < clickX.length; i++) {
-                if (clickDrag[i] && i) {
-                    that.addSegment(clickX[i - 1], clickY[i - 1], clickX[i], clickY[i], context);
-                } else {
-                    that.addSegment(clickX[i] - 1, clickY[i], clickX[i], clickY[i], context);
-                }
-            }
-            that.sceneManager.scene.add(that.mesh);
+            that.clickX.push(x);
+            that.clickY.push(y);
+            that.clickDrag.push(dragging);
         }
         $('#canvasInAPerfectWorld').mousedown(function (e) {
             paint = true;
             addClick(e.pageX - this.offsetLeft, e.pageY - this.offsetTop);
-            redraw();
+            (that.redraw).bind(that)();
         });
 
         $('#canvasInAPerfectWorld').mousemove(function (e) {
             if (paint) {
                 addClick(e.pageX - this.offsetLeft, e.pageY - this.offsetTop, true);
-                redraw();
+                (that.redraw).bind(that)();
             }
         });
 
@@ -79,24 +102,5 @@ class Application {
         $('#canvasInAPerfectWorld').mouseleave(function (e) {
             paint = false;
         });
-    }
-
-    applyGuiChanges() {
-        // console.log(guiParams.ballSize);
-        // this.mesh.scale.set(this.ballSize, this.ballSize, this.ballSize);
-    }
-
-    initGui() {
-        this.applyGuiChanges = this.applyGuiChanges.bind(this);
-        this.gui = new dat.GUI({ autoPlace: true, width: 500 });
-        // this.gui.add(this, 'ballSize').name('Ball size').min(0.1).max(16).step(0.01).onChange(this.applyGuiChanges);
-    }
-
-    onClick(inter) {
-        this.sceneManager.scene.remove(this.dot);
-        if (inter[0].object !== this.mesh) return;
-        this.dot = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshNormalMaterial());
-        this.dot.position.copy(inter[0].point);
-        this.sceneManager.scene.add(this.dot);
     }
 }
