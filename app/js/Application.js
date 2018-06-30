@@ -23,19 +23,17 @@ class Application {
         this.context.stroke();
 
         line = line.translate(new THREE.Vector3(-this.canvasWidth / 2.0, -this.canvasHeight / 2.0, 0));
-        line = line.scale(new THREE.Vector3(1/10.0, -1/10.0, 1.0));
+        line = line.scale(new THREE.Vector3(1 / 10.0, -1 / 10.0, 1.0));
         line = line.resample(0.1);
-        
+
         var normals = line.calcNormals();
         line = line.sinModulation(this.intensity, this.frequency);
-        for (var i = 1; i < line.points.length; ++i) {
-            for (var z = -this.totalHeight / 2; z <= +this.totalHeight / 2; z += this.thickness) {
-                var p = line.points[i - 1], q = line.points[i];
-                var f = 1 + (z / this.totalHeight * 2) * this.trapezoid;
-                p = new THREE.Vector3(f * p.x, f * p.y, z);
-                q = new THREE.Vector3(f * q.x, f * q.y, z);
-                this.mesh.geometry.vertices.push(p, q);
-                if (this.showNormals) this.normalsObj.geometry.vertices.push(q, q.clone().add(normals[i]));
+        for (var z = -this.totalHeight / 2; z <= +this.totalHeight / 2; z += this.thickness) {
+            var f = 1 + (z / this.totalHeight * 2) * this.trapezoid;
+            var zline = line.scale(new THREE.Vector3(f, f, 0)).translate(new THREE.Vector3(0, 0, z));
+            for (var i = 1; i < zline.points.length; ++i) {
+                this.mesh.geometry.vertices.push(zline.points[i - 1], zline.points[i]);
+                if (this.showNormals) this.normalsObj.geometry.vertices.push(zline.points[i], zline.points[i].clone().add(normals[i]));
             }
         }
     }
