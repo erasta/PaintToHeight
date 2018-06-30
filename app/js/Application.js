@@ -9,73 +9,47 @@ class Application {
         // this.applyGuiChanges();
         this.createCanvas();
     }
-    static resampleSegment(p, q, step) {
-        var dist = p.distanceTo(q);
-        var ret = [p];
-        for (var d = step; d < dist; d += step) {
-            ret.push(new THREE.Vector3().lerpVectors(p, q, d / dist));
-        }
-        ret.push(q);
-        return ret;
-    }
-    static resampleLine(line, step) {
-        var ret = [line[0]];
-        for (var i = 1; i < line.length; ++i) {
-            var p = line[i - 1], q = line[i];
-            var dist = p.distanceTo(q);
-            for (var d = step, dl = dist - step / 2.0; d <= dl; d += step) {
-                ret.push(new THREE.Vector3().lerpVectors(p, q, d / dist));
-            }
-            ret.push(q);
-        }
-        return ret;
+
+    static sinModulation(line, intensity, frequency) {
+        var dist = 0;
+        return line.points.map((p, i) => {
+            if (i == 0) return p;
+            var q = line.points[i - 1];
+            var d = p.distanceTo(q);
+            var nx = (p.y - q.y) / d, ny = (q.x - p.x) / d;
+            dist += d;
+            var s = Math.sin(dist * frequency) * intensity, c = Math.cos(dist * frequency) * intensity;
+            var v = new THREE.Vector3(p.x + c * nx, p.y + s * ny, 0);
+            return v;
+        });
     }
 
-    static removeDuplicates(line) {
-        var ret = [line[0]];
-        for (var i = 1; i < line.length; ++i) {
-            if (line[i].manhattanDistanceTo(line[i-1]) < 0.001) continue;
-            ret.push(line[i]);
-        }
-        return ret;
-    }
     drawLine(line) {
-        line = Application.removeDuplicates(line);
+        line = line.removeDuplicates();
+        if (line.points.length <= 1) return;
 
         this.context.beginPath();
-        for (var i = 1; i < line.length; ++i) {
-            this.context.moveTo(line[i-1].x, line[i-1].y);
-            this.context.lineTo(line[i].x, line[i].y);
+        for (var i = 1; i < line.points.length; ++i) {
+            this.context.moveTo(line.points[i - 1].x, line.points[i - 1].y);
+            this.context.lineTo(line.points[i].x, line.points[i].y);
         }
         this.context.closePath();
         this.context.stroke();
 
-        var line = line.map(p => {
-            return new THREE.Vector3((p.x - this.canvasWidth / 2.0) / 10.0, (-p.y + this.canvasHeight / 2.0) / 10.0, 0);
-        });
-        var line = Application.resampleLine(line, 0.1);
-
-        var dist = 0;
-        var line = line.map((p, i) => {
-            if (i == 0) return p;
-            var q = line[i-1];
-
-            var d = p.distanceTo(q);
-            var nx = (p.y - q.y) / d, ny = (q.x - p.x) / d;
-            dist += d;
-            var s = Math.sin(dist * this.frequency) * this.intensity, c = Math.cos(dist * this.frequency) * this.intensity;
-            var v = new THREE.Vector3(p.x + c * nx + s * ny, p.y - s * nx + c * ny, 0);
-            return v;
-        });
-
-        var dist = 0;
+        line = line.translate(new THREE.Vector3(-this.canvasWidth / 2.0, -this.canvasHeight / 2.0, 0));
+        line = line.scale(new THREE.Vector3(1/10.0, -1/10.0, 1.0));
+        line = line.resample(0.1);
+        
+        var normals = line.calcNormals();
+        line = Application.sinModulation(line, this.intensity, this.frequency);
         for (var i = 1; i < line.length; ++i) {
             for (var z = -this.totalHeight / 2; z <= +this.totalHeight / 2; z += this.thickness) {
-                var p = line[i-1], q = line[i];
+                var p = line[i - 1], q = line[i];
                 var f = 1 + (z / this.totalHeight * 2) * this.trapezoid;
                 p = new THREE.Vector3(f * p.x, f * p.y, z);
                 q = new THREE.Vector3(f * q.x, f * q.y, z);
                 this.mesh.geometry.vertices.push(p, q);
+                if (this.showNormals) this.normalsObj.geometry.vertices.push(q, q.clone().add(normals[i]));
             }
         }
     }
@@ -89,12 +63,9 @@ class Application {
 
         this.sceneManager.scene.remove(this.mesh);
         this.mesh = new THREE.LineSegments(new THREE.Geometry(), this.material);
+        if (this.showNormals) this.mesh.add(this.normalsObj = new THREE.LineSegments(new THREE.Geometry(), new THREE.LineBasicMaterial({ color: 'green' })));
         for (var i = 0; i < this.lines.length; i++) {
-            if (this.lines[i].length > 1) {
-                this.drawLine(this.lines[i]);
-            } else {
-                this.drawLine([new THREE.Vector2(this.lines[i][0].x - 1, this.lines[i][0].y), this.lines[i][0]]);
-            }
+            this.drawLine(this.lines[i]);
         }
         this.sceneManager.scene.add(this.mesh);
     }
@@ -116,11 +87,13 @@ class Application {
         this.trapezoid = 0;
         this.intensity = 0;
         this.frequency = 1;
+        this.showNormals = false;
         this.gui.add(this, 'totalHeight').name('Total Height').min(1).max(100).step(1).onChange(this.applyGuiChanges);
         this.gui.add(this, 'thickness').name('Thickness').min(0.001).max(3).step(0.001).onChange(this.applyGuiChanges);
         this.gui.add(this, 'trapezoid').name('Trapezoid').min(-1).max(1).step(0.001).onChange(this.applyGuiChanges);
         this.gui.add(this, 'intensity').name('Intensity').min(0).max(10).step(0.001).onChange(this.applyGuiChanges);
         this.gui.add(this, 'frequency').name('Frequency').min(0.001).max(10).step(0.001).onChange(this.applyGuiChanges);
+        this.gui.add(this, 'showNormals').onChange(this.applyGuiChanges);
         this.gui.add(this, 'showGrid').name('Show Grid');
     }
 
@@ -147,9 +120,9 @@ class Application {
 
         function addClick(x, y, dragging) {
             if (dragging && that.lines.length > 0) {
-                that.lines[that.lines.length - 1].push(new THREE.Vector2(x, y));
+                that.lines[that.lines.length - 1].push(new THREE.Vector3(x, y));
             } else {
-                that.lines.push([new THREE.Vector2(x, y)]);
+                that.lines.push(new Polyline().push(new THREE.Vector3(x, y)));
             }
             // that.clickX.push(x);
             // that.clickY.push(y);
