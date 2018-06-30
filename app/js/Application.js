@@ -10,20 +10,6 @@ class Application {
         this.createCanvas();
     }
 
-    static sinModulation(line, intensity, frequency) {
-        var dist = 0;
-        return line.points.map((p, i) => {
-            if (i == 0) return p;
-            var q = line.points[i - 1];
-            var d = p.distanceTo(q);
-            var nx = (p.y - q.y) / d, ny = (q.x - p.x) / d;
-            dist += d;
-            var s = Math.sin(dist * frequency) * intensity, c = Math.cos(dist * frequency) * intensity;
-            var v = new THREE.Vector3(p.x + c * nx, p.y + s * ny, 0);
-            return v;
-        });
-    }
-
     drawLine(line) {
         line = line.removeDuplicates();
         if (line.points.length <= 1) return;
@@ -41,10 +27,10 @@ class Application {
         line = line.resample(0.1);
         
         var normals = line.calcNormals();
-        line = Application.sinModulation(line, this.intensity, this.frequency);
-        for (var i = 1; i < line.length; ++i) {
+        line = line.sinModulation(this.intensity, this.frequency);
+        for (var i = 1; i < line.points.length; ++i) {
             for (var z = -this.totalHeight / 2; z <= +this.totalHeight / 2; z += this.thickness) {
-                var p = line[i - 1], q = line[i];
+                var p = line.points[i - 1], q = line.points[i];
                 var f = 1 + (z / this.totalHeight * 2) * this.trapezoid;
                 p = new THREE.Vector3(f * p.x, f * p.y, z);
                 q = new THREE.Vector3(f * q.x, f * q.y, z);
