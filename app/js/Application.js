@@ -1,7 +1,5 @@
 class Application {
     init() {
-        this.ballSize = 3;
-
         this.initGui();
 
         this.material = new THREE.LineBasicMaterial({ color: 'red' });
@@ -18,8 +16,14 @@ class Application {
         this.context.closePath();
         this.context.stroke();
         for (var z = -this.totalHeight / 2; z <= +this.totalHeight / 2; z += this.thickness) {
-            this.mesh.geometry.vertices.push(new THREE.Vector3((x1 - this.canvasWidth / 2.0) / 10.0, (-y1 + this.canvasHeight / 2.0) / 10.0, z));
-            this.mesh.geometry.vertices.push(new THREE.Vector3((x2 - this.canvasWidth / 2.0) / 10.0, (-y2 + this.canvasHeight / 2.0) / 10.0, z));
+            var f = 1+(z / this.totalHeight * 2) * this.trapezoid;
+            // f = ((f >= 0) ? 1+f : 1-f);
+            var rx1 = f * (x1 - this.canvasWidth / 2.0) / 10.0;
+            var rx2 = f * (x2 - this.canvasWidth / 2.0) / 10.0;
+            var ry1 = f * (-y1 + this.canvasHeight / 2.0) / 10.0;
+            var ry2 = f * (-y2 + this.canvasHeight / 2.0) / 10.0;
+            this.mesh.geometry.vertices.push(new THREE.Vector3(rx1, ry1, z));
+            this.mesh.geometry.vertices.push(new THREE.Vector3(rx2, ry2, z));
         }
     }
 
@@ -53,17 +57,19 @@ class Application {
         this.gui = new dat.GUI({ autoPlace: true, width: 500 });
         this.totalHeight = 20;
         this.thickness = 0.5;
+        this.trapezoid = 0;
         this.gui.add(this, 'totalHeight').name('Total Height').min(1).max(100).step(1).onChange(this.applyGuiChanges);
         this.gui.add(this, 'thickness').name('Thickness').min(0.001).max(3).step(0.001).onChange(this.applyGuiChanges);
+        this.gui.add(this, 'trapezoid').name('Trapezoid').min(-1).max(1).step(0.001).onChange(this.applyGuiChanges);
     }
 
-    onClick(inter) {
-        this.sceneManager.scene.remove(this.dot);
-        if (inter[0].object !== this.mesh) return;
-        this.dot = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshNormalMaterial());
-        this.dot.position.copy(inter[0].point);
-        this.sceneManager.scene.add(this.dot);
-    }
+    // onClick(inter) {
+    //     this.sceneManager.scene.remove(this.dot);
+    //     if (inter[0].object !== this.mesh) return;
+    //     this.dot = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshNormalMaterial());
+    //     this.dot.position.copy(inter[0].point);
+    //     this.sceneManager.scene.add(this.dot);
+    // }
 
     createCanvas() {
         var canvas = document.getElementById('canvasInAPerfectWorld');
