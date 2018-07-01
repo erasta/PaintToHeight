@@ -90,7 +90,7 @@ class Application {
     // }
 
     createCanvas() {
-        var canvas = document.getElementById('canvasInAPerfectWorld');
+        var canvas = document.getElementById('CanvasDraw');
         this.context = canvas.getContext("2d");
         this.canvasHeight = canvas.height = this.context.canvas.clientHeight;
         this.canvasWidth = canvas.width = this.context.canvas.clientWidth;
@@ -113,22 +113,22 @@ class Application {
             // that.clickDrag.push(dragging);
             (that.redraw).bind(that)();
         }
-        $('#canvasInAPerfectWorld').mousedown(function (e) {
+        $('#CanvasDraw').mousedown(function (e) {
             paint = true;
             addClick(e.pageX - this.offsetLeft, e.pageY - this.offsetTop);
         });
 
-        $('#canvasInAPerfectWorld').mousemove(function (e) {
+        $('#CanvasDraw').mousemove(function (e) {
             if (paint) {
                 addClick(e.pageX - this.offsetLeft, e.pageY - this.offsetTop, true);
             }
         });
 
-        $('#canvasInAPerfectWorld').mouseup(function (e) {
+        $('#CanvasDraw').mouseup(function (e) {
             paint = false;
         });
 
-        $('#canvasInAPerfectWorld').mouseleave(function (e) {
+        $('#CanvasDraw').mouseleave(function (e) {
             paint = false;
         });
     }
